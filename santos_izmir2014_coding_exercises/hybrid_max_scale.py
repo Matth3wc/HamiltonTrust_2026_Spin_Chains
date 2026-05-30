@@ -462,7 +462,7 @@ def even_l_entropy_sweep(
 
 
 def plot_even_l_entropy_sweep(
-    l_values: Iterable[int] = range(2, 21, 2),
+    l_values: Iterable[int] = range(2, 23, 2),
     j2_min: float = 0.0,
     j2_max: float = 3.0,
     j2_step: float = 0.1,
