@@ -1,4 +1,11 @@
 import numpy as np
+import pytest
+
+# Skip the tests if QuSpin is not available in the current Python environment.
+try:
+    import quspin  # noqa: F401
+except Exception:
+    pytest.skip("quspin not installed; skipping EE_QuSpin_Method tests", allow_module_level=True)
 from EE_QuSpin_Method.quspin_chain.config import ModelConfig
 from EE_QuSpin_Method.quspin_chain.basis import build_basis
 from EE_QuSpin_Method.quspin_chain.hamiltonian import build_hamiltonian
