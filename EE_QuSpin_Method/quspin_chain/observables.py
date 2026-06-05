@@ -42,35 +42,26 @@ def entanglement_entropy(basis, state: np.ndarray, sub_sys_A=None, density: bool
 
 
 def magnetisation(basis, state: np.ndarray) -> float:
-    """Total S^z magnetisation (sum over sites) for a given state vector.
+    """Total z magnetisation in Pauli units.
 
-    The operator used is the single-site 'z' operator available via `quspin.operators.hamiltonian`.
+    All-up state gives +L.
+    All-down state gives -L.
     """
-    try:
-        from quspin.operators import hamiltonian
-    except Exception as e:
-        raise ImportError("quspin is required to build magnetisation operator") from e
+    from quspin.operators import hamiltonian
 
     static = [["z", [[1.0, i] for i in range(basis.L)]]]
-    Sz = hamiltonian(static, [], basis=basis)
-    # compute expectation and use real part to avoid ComplexWarning
-    val = np.vdot(state, Sz.dot(state))
 
-    # Determine scaling so that an all-up product basis vector maps to
-    # magnetisation == L. This handles QuSpin conventions where per-site
-    # S^z is either +/-1 (Pauli) or +/-1/2 (spin-1/2 operator).
-    try:
-        Ns = int(basis.Ns)
-    except Exception:
-        Ns = None
+    Mz = hamiltonian(
+        static,
+        [],
+        basis=basis,
+        dtype=np.float64,
+        check_herm=False,
+        check_symm=False,
+        check_pcon=False,
+        pauli=True,
+    )
 
-    scale = 1.0
-    if Ns is not None and Ns > 0:
-        e0 = np.zeros(Ns, dtype=complex)
-        e0[0] = 1.0
-        val0 = np.vdot(e0, Sz.dot(e0)).real
-        if abs(val0) > 1e-12:
-            scale = float(basis.L) / float(val0)
-
-    return float(np.real(val) * scale)
+    val = np.vdot(state, Mz.dot(state))
+    return float(np.real_if_close(val))
 
