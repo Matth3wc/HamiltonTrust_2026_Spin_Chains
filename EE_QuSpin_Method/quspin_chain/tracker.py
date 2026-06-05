@@ -10,20 +10,19 @@ def match_states(prev_vecs: np.ndarray, new_vecs: np.ndarray):
     """
     # compute overlap matrix: |<prev_i | new_j>|
     ov = np.abs(prev_vecs.conj().T @ new_vecs)
-    # greedy matching by maximum overlap
     n = ov.shape[0]
     perm = -np.ones(n, dtype=int)
-    used = np.zeros(n, dtype=bool)
-    for i in range(n):
-        j = ov[i].argmax()
-        # if already used, pick next best
-        k = 0
-        while used[j]:
-            ov[i, j] = -1
-            j = ov[i].argmax()
-            k += 1
-            if k > n:
-                break
+
+    # global greedy assignment: repeatedly pick the largest remaining overlap
+    # and assign that (row, col) pair, then remove the row and column.
+    ov_copy = ov.copy()
+    for _ in range(n):
+        # find index of maximum remaining overlap
+        idx = ov_copy.argmax()
+        i, j = divmod(int(idx), ov_copy.shape[1])
         perm[i] = j
-        used[j] = True
+        # invalidate selected row and column
+        ov_copy[i, :] = -1
+        ov_copy[:, j] = -1
+
     return perm

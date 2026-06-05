@@ -47,21 +47,21 @@ def magnetisation(basis, state: np.ndarray) -> float:
     All-up state gives +L.
     All-down state gives -L.
     """
-    from quspin.operators import hamiltonian
+    # Compute expectation of total Pauli-Z directly from the computational
+    # basis bitstrings to avoid constructing an operator repeatedly. For
+    # spin-1/2 with the `pauli=True` basis convention, a basis state's bit
+    # value 1 corresponds to eigenvalue +1 and 0 to -1 for sigma_z. Thus
+    # the per-state magnetisation is sum_i (2*bit_i - 1).
+    probs = np.abs(state) ** 2
+    # build magnetisation per basis state
+    L = basis.L
+    # use basis.int_to_state to get bit arrays for each integer state
+    ms = []
+    for s in basis.states:
+        # extract bits from integer representation; order matches int_to_state
+        bits = ((int(s) >> np.arange(L - 1, -1, -1)) & 1)
+        ms.append(float((2 * bits - 1).sum()))
+    ms = np.array(ms, dtype=float)
 
-    static = [["z", [[1.0, i] for i in range(basis.L)]]]
-
-    Mz = hamiltonian(
-        static,
-        [],
-        basis=basis,
-        dtype=np.float64,
-        check_herm=False,
-        check_symm=False,
-        check_pcon=False,
-        pauli=True,
-    )
-
-    val = np.vdot(state, Mz.dot(state))
-    return float(np.real_if_close(val))
+    return float(np.dot(probs, ms))
 
