@@ -22,6 +22,9 @@ from .observables import (
     r_statistic,
     level_spacings,
     entanglement_entropy,
+    magnetisation_z,
+    magnetisation_z_abs,
+    magnetisation_z_squared,
     magnetisation,
 )
 
@@ -38,5 +41,8 @@ __all__ = [
     "r_statistic",
     "level_spacings",
      "entanglement_entropy",
+     "magnetisation_z",
+     "magnetisation_z_abs",
+     "magnetisation_z_squared",
      "magnetisation",
 ]

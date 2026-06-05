@@ -124,16 +124,26 @@ Primary contents:
 - Entanglement and magnetisation that depend on QuSpin `basis` objects:
   - `entanglement_entropy(basis, state, sub_sys_A=None, density=False, alpha=1.0)`
     — delegates to `basis.ent_entropy(...)` and returns `Sent_A`.
-  - `magnetisation(basis, state)` — constructs a `Sz` operator via
-    `quspin.operators.hamiltonian` and returns the expectation value.
+  - `magnetisation_z(basis, state, per_site=True, pauli_units=True)` — total
+    or per-site $M_z$ expectation in Pauli units.
+  - `magnetisation_z_abs(basis, state, per_site=True, pauli_units=True)` —
+    probability-weighted $\langle |M_z| \rangle$ for full computational bases.
+  - `magnetisation_z_squared(basis, state, per_site=True, pauli_units=True)` —
+    stable ferromagnetic diagnostic $\langle M_z^2 \rangle$.
+  - `magnetisation(basis, state)` — backward-compatible wrapper around
+    `magnetisation_z(..., per_site=False, pauli_units=True)`.
 
 Notes:
 - `shannon_entropy` uses natural log by default; base can be changed.
 - `inverse_participation_ratio` returns the sum of squared probabilities.
 - `r_statistic` implements the average ratio-of-consecutive-gaps metric;
   returns NaN for insufficient spectrum size.
-- `magnetisation` constructs the operator on each call; for repeated calls it
-  would be more efficient to cache the operator (by `basis` identity).
+- `magnetisation_z` and `magnetisation_z_squared` construct the operator on
+  each call; for repeated calls it would be more efficient to cache it by
+  `basis` identity.
+- `magnetisation_z_abs` only uses the computational-basis interpretation when
+  the full Hilbert space is available. Symmetry-reduced bases raise a clear
+  error instead of returning a misleading number.
 
 Module: `sweep.py`
 ------------------
@@ -148,7 +158,11 @@ Detailed dataflow per sweep step:
 3. `H = build_hamiltonian(base_cfg, basis)` — construct QuSpin `hamiltonian`.
 4. `energies, states = Solver.diagonalize(H, k=k)` — compute eigenpairs.
 5. For each tracked eigenstate `i` of the returned `states` (columns):
-   - Compute `magnetisation(basis, vec)`
+   - Compute `magnetisation_z(basis, vec)`
+   - Compute `magnetisation_z_abs(basis, vec)` when the full basis is
+     available
+   - Compute `magnetisation_z_squared(basis, vec)` as the stable ferromagnetic
+     diagnostic
    - Compute `entanglement_entropy(basis, vec, sub_sys_A=sub_sys_A)`
    - Compute `shannon_entropy(vec)`
    - Compute `inverse_participation_ratio(vec)`
@@ -156,12 +170,15 @@ Detailed dataflow per sweep step:
      states exist; otherwise `NaN` for fidelity.
 6. Compute level spacings and `r_statistic` from `energies`.
 7. If `prev_states` is set, call `match_states(prev_states, states)` to
-   compute a permutation aligning the new states to the previous ordering.
-   Reorder `states` and `energies` accordingly. This keeps observables
-   associated to the same tracked physical state across parameter steps.
+  compute a permutation aligning the new states to the previous ordering.
+  The implementation uses `scipy.optimize.linear_sum_assignment` to maximize
+  the total overlap rather than greedily matching one row at a time.
+  Reorder `states` and `energies` accordingly. This keeps observables
+  associated to the same tracked physical state across parameter steps.
 8. Append a result dict containing `param`, `energies`, `states`,
-   `magnetisation`, `entanglement`, `shannon`, `ipr`, `fidelity`,
-   `level_spacings`, and `r_stat`.
+  `magnetisation`, `magnetisation_z`, `magnetisation_z_abs`,
+  `magnetisation_z_squared`, `tracking_overlap`, `entanglement`, `shannon`,
+  `ipr`, `fidelity`, `level_spacings`, and `r_stat`.
 9. Set `prev_states = states.copy()` and `prev_states_tracked = states.copy()`
    for next iteration.
 
@@ -221,8 +238,10 @@ Design decisions and recommendations
 - `Solver.diagonalize` tries iterative sparse solvers first for efficiency;
   users should tune `k` and `which` (the latter for targeting low/high
   eigenvalues) to match their experiment.
-- `match_states` is greedy for simplicity; for production workflows prefer an
-  optimal assignment algorithm if state reordering is critical.
+- `match_states` now uses the Hungarian algorithm. This is more robust when
+  nearby eigenvectors rotate inside a nearly degenerate subspace.
+- For magnetic order in finite systems, prefer `magnetisation_z_squared` over
+  plotting individual `magnetisation` traces in the ferromagnetic regime.
 
 Known limitations and TODOs
 --------------------------
@@ -285,6 +304,18 @@ Change Log (append-only)
    - Rationale: The adaptive scale removes dependence on optional
      `basis` attributes and gives a consistent magnetisation output for
      plotting and testing.
+ - 2026-06-05 — Fix: explicit magnetisation diagnostics and Hungarian state
+   tracking.
+   - Files changed: `quspin_chain/basis.py`, `quspin_chain/observables.py`,
+     `quspin_chain/tracker.py`, `quspin_chain/sweep.py`, `quspin_chain/plotting.py`,
+     `quspin_chain/__init__.py`, `tests/test_basic.py`.
+   - Summary: Restored the full computational basis convention, added
+     `magnetisation_z`, `magnetisation_z_abs`, and `magnetisation_z_squared`,
+     switched state matching to `linear_sum_assignment`, and propagated
+     tracking-overlap diagnostics through the sweep and plotting helpers.
+   - Rationale: Individual eigenstate magnetisation is unstable near
+     degeneracies; the new API makes the stable ferromagnetic diagnostic
+     explicit and exposes the tracking quality alongside it.
 
 Update policy
 -------------

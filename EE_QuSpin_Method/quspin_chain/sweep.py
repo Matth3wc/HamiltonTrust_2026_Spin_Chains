@@ -11,6 +11,9 @@ from .observables import (
     inverse_participation_ratio,
     entanglement_entropy,
     magnetisation,
+    magnetisation_z,
+    magnetisation_z_abs,
+    magnetisation_z_squared,
     fidelity,
     r_statistic,
     level_spacings,
@@ -34,14 +37,20 @@ def run_sweep(base_cfg: ModelConfig, sweep: SweepConfig, k: int = 5, sub_sys_A=N
 
         # track states between steps by overlap and reorder before computing
         # per-state observables so observables align with the reordered energies
+        tracking_overlap = [float("nan")] * states.shape[1]
         if prev_states is not None:
+            overlap_matrix = np.abs(prev_states.conj().T @ states)
             perm = match_states(prev_states, states)
+            tracking_overlap = overlap_matrix[np.arange(len(perm)), perm].tolist()
             # reorder states to align with previous step
             states = states[:, perm]
             energies = energies[perm]
 
         # compute observables for each tracked (and now-ordered) state
         mags = []
+        mags_z = []
+        mags_abs = []
+        mags_sq = []
         sents = []
         shannons = []
         iprs = []
@@ -49,6 +58,12 @@ def run_sweep(base_cfg: ModelConfig, sweep: SweepConfig, k: int = 5, sub_sys_A=N
         for i in range(states.shape[1]):
             vec = states[:, i]
             mags.append(magnetisation(basis, vec))
+            mags_z.append(magnetisation_z(basis, vec, per_site=True, pauli_units=True))
+            try:
+                mags_abs.append(magnetisation_z_abs(basis, vec, per_site=True, pauli_units=True))
+            except ValueError:
+                mags_abs.append(float('nan'))
+            mags_sq.append(magnetisation_z_squared(basis, vec, per_site=True, pauli_units=True))
             sents.append(entanglement_entropy(basis, vec, sub_sys_A=sub_sys_A))
             shannons.append(shannon_entropy(vec))
             iprs.append(inverse_participation_ratio(vec))
@@ -65,12 +80,16 @@ def run_sweep(base_cfg: ModelConfig, sweep: SweepConfig, k: int = 5, sub_sys_A=N
                 "energies": energies,
                 "states": states,
                 "magnetisation": mags,
+                "magnetisation_z": mags_z,
+                "magnetisation_z_abs": mags_abs,
+                "magnetisation_z_squared": mags_sq,
                 "entanglement": sents,
                 "shannon": shannons,
                 "ipr": iprs,
                 "fidelity": fs,
                 "level_spacings": ls,
                 "r_stat": r,
+                "tracking_overlap": tracking_overlap,
             }
         )
 

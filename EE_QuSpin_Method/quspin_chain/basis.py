@@ -13,4 +13,4 @@ def build_basis(cfg: ModelConfig):
     except Exception as e:
         raise ImportError("quspin is required to build the basis") from e
 
-    return spin_basis_1d(L=cfg.L, pauli=True, **cfg.basis_kwargs)
+    return spin_basis_1d(L=cfg.L, pauli=False, **cfg.basis_kwargs)

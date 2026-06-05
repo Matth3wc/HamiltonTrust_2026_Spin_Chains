@@ -1,6 +1,7 @@
 """Observable calculators: magnetisation, fidelity, shannon, IPR, r-statistics."""
-import numpy as np
 from typing import Sequence
+
+import numpy as np
 
 
 def shannon_entropy(state: np.ndarray, base: float = np.e) -> float:
@@ -41,27 +42,89 @@ def entanglement_entropy(basis, state: np.ndarray, sub_sys_A=None, density: bool
     return float(res.get("Sent_A", res.get("Sent", float('nan'))))
 
 
-def magnetisation(basis, state: np.ndarray) -> float:
-    """Total z magnetisation in Pauli units.
+def _state_norm(state: np.ndarray) -> float:
+    norm = float(np.real_if_close(np.vdot(state, state)))
+    return norm if norm > 0 else 1.0
 
-    All-up state gives +L.
-    All-down state gives -L.
+
+def _spin_operator(basis):
+    from quspin.operators import hamiltonian
+
+    static = [["z", [[1.0, i] for i in range(basis.L)]]]
+    return hamiltonian(
+        static,
+        [],
+        basis=basis,
+        dtype=np.float64,
+        check_herm=False,
+        check_symm=False,
+        check_pcon=False,
+    )
+
+
+def _basis_total_magnetisation_values(basis, pauli_units: bool = True) -> np.ndarray:
+    if basis.Ns != 2 ** basis.L:
+        raise ValueError(
+            "absolute magnetisation requires the full computational basis; "
+            "use magnetisation_z_squared for symmetry-reduced bases"
+        )
+
+    states = np.asarray(basis.states, dtype=np.int64)
+    bits = ((states[:, None] >> np.arange(basis.L - 1, -1, -1)) & 1)
+    values = np.sum(1 - 2 * bits, axis=1).astype(float)
+    if not pauli_units:
+        values *= 0.5
+    return values
+
+
+def magnetisation_z(basis, state: np.ndarray, per_site: bool = True, pauli_units: bool = True) -> float:
+    """Return <sum_i sigma_i^z> or the corresponding per-site average.
+
+    The basis is constructed with ``pauli=False``, so QuSpin's ``"z"`` operator
+    measures spin-1/2 ``S^z``. When ``pauli_units=True`` the result is converted
+    to Pauli units by multiplying by 2.
     """
-    # Compute expectation of total Pauli-Z directly from the computational
-    # basis bitstrings to avoid constructing an operator repeatedly. For
-    # spin-1/2 with the `pauli=True` basis convention, a basis state's bit
-    # value 1 corresponds to eigenvalue +1 and 0 to -1 for sigma_z. Thus
-    # the per-state magnetisation is sum_i (2*bit_i - 1).
-    probs = np.abs(state) ** 2
-    # build magnetisation per basis state
-    L = basis.L
-    # use basis.int_to_state to get bit arrays for each integer state
-    ms = []
-    for s in basis.states:
-        # extract bits from integer representation; order matches int_to_state
-        bits = ((int(s) >> np.arange(L - 1, -1, -1)) & 1)
-        ms.append(float((2 * bits - 1).sum()))
-    ms = np.array(ms, dtype=float)
+    op = _spin_operator(basis)
+    norm = _state_norm(state)
+    value = np.vdot(state, op.dot(state)) / norm
+    value = float(np.real_if_close(value))
+    if pauli_units:
+        value *= 2.0
+    if per_site:
+        value /= basis.L
+    return float(value)
 
-    return float(np.dot(probs, ms))
 
+def magnetisation_z_abs(basis, state: np.ndarray, per_site: bool = True, pauli_units: bool = True) -> float:
+    """Return <|M_z|> in computational basis when that interpretation is safe.
+
+    For symmetry-reduced bases, the computational-basis probabilities are not
+    available directly and a clear error is raised instead of returning a
+    misleading value.
+    """
+    probs = np.abs(np.asarray(state)) ** 2
+    probs = probs / probs.sum()
+    values = np.abs(_basis_total_magnetisation_values(basis, pauli_units=pauli_units))
+    value = float(np.dot(probs, values))
+    if per_site:
+        value /= basis.L
+    return float(value)
+
+
+def magnetisation_z_squared(basis, state: np.ndarray, per_site: bool = True, pauli_units: bool = True) -> float:
+    """Return <M_z^2>, the stable magnetic-order diagnostic in finite systems."""
+    op = _spin_operator(basis)
+    norm = _state_norm(state)
+    mz_state = op.dot(state)
+    value = np.vdot(mz_state, mz_state) / norm
+    value = float(np.real_if_close(value))
+    if pauli_units:
+        value *= 4.0
+    if per_site:
+        value /= basis.L ** 2
+    return float(value)
+
+
+def magnetisation(basis, state: np.ndarray) -> float:
+    """Backward-compatible total magnetisation in Pauli units."""
+    return magnetisation_z(basis, state, per_site=False, pauli_units=True)

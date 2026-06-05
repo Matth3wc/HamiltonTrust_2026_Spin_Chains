@@ -38,11 +38,32 @@ def test_entanglement_and_magnetisation():
     vec = np.zeros(b.Ns, dtype=complex)
     vec[0] = 1.0
     # entanglement should be zero for product state
-    from EE_QuSpin_Method.quspin_chain.observables import entanglement_entropy, magnetisation
+    from EE_QuSpin_Method.quspin_chain.observables import (
+        entanglement_entropy,
+        magnetisation,
+        magnetisation_z,
+        magnetisation_z_abs,
+        magnetisation_z_squared,
+    )
     sent = entanglement_entropy(b, vec, sub_sys_A=list(range(cfg.L // 2)))
     m = magnetisation(b, vec)
+    mz = magnetisation_z(b, vec, per_site=False, pauli_units=True)
+    mz_abs = magnetisation_z_abs(b, vec, per_site=False, pauli_units=True)
+    mz_sq = magnetisation_z_squared(b, vec, per_site=True, pauli_units=True)
     assert np.isclose(sent, 0.0)
     assert np.isclose(m, cfg.L)
+    assert np.isclose(mz, cfg.L)
+    assert np.isclose(mz_abs, cfg.L)
+    assert np.isclose(mz_sq, 1.0)
+
+
+def test_match_states_uses_optimal_assignment():
+    from EE_QuSpin_Method.quspin_chain.tracker import match_states
+
+    prev = np.eye(3, dtype=complex)
+    new = prev[:, [1, 2, 0]]
+    perm = match_states(prev, new)
+    assert perm.tolist() == [2, 0, 1]
 
 
 def test_run_small_sweep():
@@ -55,3 +76,6 @@ def test_run_small_sweep():
     for r in results:
         assert 'energies' in r and 'states' in r
         assert len(r['energies']) == 3
+        assert 'magnetisation_z' in r
+        assert 'magnetisation_z_squared' in r
+        assert 'tracking_overlap' in r
