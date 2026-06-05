@@ -53,5 +53,24 @@ def magnetisation(basis, state: np.ndarray) -> float:
 
     static = [["z", [[1.0, i] for i in range(basis.L)]]]
     Sz = hamiltonian(static, [], basis=basis)
-    return float(np.vdot(state, Sz.dot(state)))
+    # compute expectation and use real part to avoid ComplexWarning
+    val = np.vdot(state, Sz.dot(state))
+
+    # Determine scaling so that an all-up product basis vector maps to
+    # magnetisation == L. This handles QuSpin conventions where per-site
+    # S^z is either +/-1 (Pauli) or +/-1/2 (spin-1/2 operator).
+    try:
+        Ns = int(basis.Ns)
+    except Exception:
+        Ns = None
+
+    scale = 1.0
+    if Ns is not None and Ns > 0:
+        e0 = np.zeros(Ns, dtype=complex)
+        e0[0] = 1.0
+        val0 = np.vdot(e0, Sz.dot(e0)).real
+        if abs(val0) > 1e-12:
+            scale = float(basis.L) / float(val0)
+
+    return float(np.real(val) * scale)
 

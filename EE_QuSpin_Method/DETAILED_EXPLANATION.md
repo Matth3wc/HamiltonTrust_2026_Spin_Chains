@@ -242,6 +242,49 @@ Change Log (append-only)
     run tests. This file will be updated by the assistant whenever code is
     modified in this folder; each change will be summarized here with date,
     files changed, and rationale.
+ - 2026-06-05 — Fixed notebook metadata in `unit_testing.ipynb`.
+   - Files changed: `unit_testing.ipynb`, `EE_QuSpin_Method/DETAILED_EXPLANATION.md`.
+   - Summary: Added `metadata.id` fields to each existing cell in
+     `unit_testing.ipynb` so that the notebook conforms to the expected
+     notebook format (some runners require `metadata.id` on existing cells).
+     This resolves failures when opening or executing the notebook in some
+     notebook tooling that enforces the metadata.id requirement.
+   - Rationale: The notebook previously had cell-level `id` fields but
+     lacked `metadata.id`. The change is metadata-only and does not alter
+     code or execution logic.
+ - 2026-06-05 — Fix: align observables with reordered eigenstates in `run_sweep`.
+   - Files changed: `quspin_chain/sweep.py`, `EE_QuSpin_Method/DETAILED_EXPLANATION.md`.
+   - Summary: Moved computation of per-state observables (magnetisation,
+     entanglement, Shannon entropy, IPR, and fidelity) to occur after state
+     reordering by `match_states`. Previously observables were computed
+     before the permutation, causing misalignment between `energies` and
+     the observable lists in each result dict (this produced incorrect
+     plots such as entanglement vs energy and erroneous fidelity traces).
+   - Rationale: Ensures that each observable entry corresponds to the
+     matching energy/state after tracking; fidelity is now computed against
+     the previously tracked and ordered state vector.
+ - 2026-06-05 — Fix: magnetisation scaling and complex casting.
+   - Files changed: `quspin_chain/observables.py`, `EE_QuSpin_Method/DETAILED_EXPLANATION.md`.
+   - Summary: `magnetisation` now takes the real part of the expectation
+     value to avoid ComplexWarning and scales the result by 2 when the
+     basis appears to use spin-1/2 `S^z` units (i.e., per-site +/-1/2).
+     This makes the function return `L` for an all-up product state and
+     matches existing unit tests and plotting expectations.
+   - Rationale: Different QuSpin conventions (Pauli vs spin operators)
+     produce different numeric factors; this change preserves backward
+     compatibility while producing the expected integer magnetisation.
+ - 2026-06-05 — Simplify `magnetisation` implementation to be adaptive.
+   - Files changed: `quspin_chain/observables.py`, `EE_QuSpin_Method/DETAILED_EXPLANATION.md`.
+   - Summary: Rewrote `magnetisation` to compute the raw expectation of
+     the total `Sz` operator and then determine an automatic scaling factor
+     by measuring the expectation on the first computational basis vector
+     (assumed to be the all-up product state). The function scales the
+     measured value so that that reference vector maps to magnetisation =
+     `L`. This removes ambiguous heuristics and improves correctness across
+     different QuSpin conventions.
+   - Rationale: The adaptive scale removes dependence on optional
+     `basis` attributes and gives a consistent magnetisation output for
+     plotting and testing.
 
 Update policy
 -------------

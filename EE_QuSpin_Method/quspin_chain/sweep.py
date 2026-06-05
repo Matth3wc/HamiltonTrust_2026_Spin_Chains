@@ -28,8 +28,19 @@ def run_sweep(base_cfg: ModelConfig, sweep: SweepConfig, k: int = 5, sub_sys_A=N
         H = build_hamiltonian(base_cfg, basis)
         energies, states = Solver.diagonalize(H, k=k)
 
-        # ensure states columns correspond to eigenvectors
-        # compute observables for each tracked state
+        # compute level statistics
+        ls = level_spacings(energies)
+        r = r_statistic(energies)
+
+        # track states between steps by overlap and reorder before computing
+        # per-state observables so observables align with the reordered energies
+        if prev_states is not None:
+            perm = match_states(prev_states, states)
+            # reorder states to align with previous step
+            states = states[:, perm]
+            energies = energies[perm]
+
+        # compute observables for each tracked (and now-ordered) state
         mags = []
         sents = []
         shannons = []
@@ -44,20 +55,9 @@ def run_sweep(base_cfg: ModelConfig, sweep: SweepConfig, k: int = 5, sub_sys_A=N
             if prev_states_tracked is None:
                 fs.append(float('nan'))
             else:
-                # match by index
+                # fidelity against the previously tracked (ordered) state
                 fval = fidelity(prev_states_tracked[:, i], vec)
                 fs.append(fval)
-
-        # compute level statistics
-        ls = level_spacings(energies)
-        r = r_statistic(energies)
-
-        # track states between steps by overlap
-        if prev_states is not None:
-            perm = match_states(prev_states, states)
-            # reorder states to align with previous step
-            states = states[:, perm]
-            energies = energies[perm]
 
         results.append(
             {
