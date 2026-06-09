@@ -58,12 +58,12 @@ def run_sweep(base_cfg: ModelConfig, sweep: SweepConfig, k: int = 5, sub_sys_A=N
         for i in range(states.shape[1]):
             vec = states[:, i]
             mags.append(magnetisation(basis, vec))
-            mags_z.append(magnetisation_z(basis, vec, per_site=True, pauli_units=True))
+            mags_z.append(magnetisation_z(basis, vec, per_site=False, pauli_units=False))
             try:
-                mags_abs.append(magnetisation_z_abs(basis, vec, per_site=True, pauli_units=True))
+                mags_abs.append(magnetisation_z_abs(basis, vec, per_site=False, pauli_units=False))
             except ValueError:
                 mags_abs.append(float('nan'))
-            mags_sq.append(magnetisation_z_squared(basis, vec, per_site=True, pauli_units=True))
+            mags_sq.append(magnetisation_z_squared(basis, vec, per_site=False, pauli_units=False))
             sents.append(entanglement_entropy(basis, vec, sub_sys_A=sub_sys_A))
             shannons.append(shannon_entropy(vec))
             iprs.append(inverse_participation_ratio(vec))

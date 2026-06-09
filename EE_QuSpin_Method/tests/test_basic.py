@@ -51,7 +51,7 @@ def test_entanglement_and_magnetisation():
     mz_abs = magnetisation_z_abs(b, vec, per_site=False, pauli_units=True)
     mz_sq = magnetisation_z_squared(b, vec, per_site=True, pauli_units=True)
     assert np.isclose(sent, 0.0)
-    assert np.isclose(m, cfg.L)
+    assert np.isclose(m, cfg.L / 2)
     assert np.isclose(mz, cfg.L)
     assert np.isclose(mz_abs, cfg.L)
     assert np.isclose(mz_sq, 1.0)

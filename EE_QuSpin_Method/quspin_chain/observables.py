@@ -77,8 +77,8 @@ def _basis_total_magnetisation_values(basis, pauli_units: bool = True) -> np.nda
     return values
 
 
-def magnetisation_z(basis, state: np.ndarray, per_site: bool = True, pauli_units: bool = True) -> float:
-    """Return <sum_i sigma_i^z> or the corresponding per-site average.
+def magnetisation_z(basis, state: np.ndarray, per_site: bool = False, pauli_units: bool = True) -> float:
+    """Return <sum_i sigma_i^z> (total) or the per-site average when ``per_site=True``.
 
     The basis is constructed with ``pauli=False``, so QuSpin's ``"z"`` operator
     measures spin-1/2 ``S^z``. When ``pauli_units=True`` the result is converted
@@ -95,7 +95,7 @@ def magnetisation_z(basis, state: np.ndarray, per_site: bool = True, pauli_units
     return float(value)
 
 
-def magnetisation_z_abs(basis, state: np.ndarray, per_site: bool = True, pauli_units: bool = True) -> float:
+def magnetisation_z_abs(basis, state: np.ndarray, per_site: bool = False, pauli_units: bool = True) -> float:
     """Return <|M_z|> in computational basis when that interpretation is safe.
 
     For symmetry-reduced bases, the computational-basis probabilities are not
@@ -111,8 +111,11 @@ def magnetisation_z_abs(basis, state: np.ndarray, per_site: bool = True, pauli_u
     return float(value)
 
 
-def magnetisation_z_squared(basis, state: np.ndarray, per_site: bool = True, pauli_units: bool = True) -> float:
-    """Return <M_z^2>, the stable magnetic-order diagnostic in finite systems."""
+def magnetisation_z_squared(basis, state: np.ndarray, per_site: bool = False, pauli_units: bool = True) -> float:
+    """Return <M_z^2> (total), or per-site value when ``per_site=True``.
+
+    The returned value is in Pauli units when ``pauli_units=True``.
+    """
     op = _spin_operator(basis)
     norm = _state_norm(state)
     mz_state = op.dot(state)
@@ -126,5 +129,5 @@ def magnetisation_z_squared(basis, state: np.ndarray, per_site: bool = True, pau
 
 
 def magnetisation(basis, state: np.ndarray) -> float:
-    """Backward-compatible total magnetisation in Pauli units."""
-    return magnetisation_z(basis, state, per_site=False, pauli_units=True)
+    """Total magnetisation in spin units."""
+    return magnetisation_z(basis, state, per_site=False, pauli_units=False)

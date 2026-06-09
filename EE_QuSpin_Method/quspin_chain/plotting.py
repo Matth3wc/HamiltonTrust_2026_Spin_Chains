@@ -16,8 +16,6 @@ def plot_energies_vs_param(results: List[Dict[str, Any]], states: int = 5):
 
 def plot_observable_vs_param(results: List[Dict[str, Any]], key: str, states: int = 5):
     ps = [r["param"] for r in results]
-    if key in {"magnetisation", "magnetisation_z"} and any("magnetisation_z_squared" in r for r in results):
-        key = "magnetisation_z_squared"
     for i in range(states):
         ys = [r[key][i] for r in results]
         plt.plot(ps, ys, label=f'state {i}')
